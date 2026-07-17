@@ -1,4 +1,4 @@
-package database
+package internal
 
 import (
 	"context"
@@ -7,16 +7,12 @@ import (
 )
 
 func Connect(databaseURL string) (*pgxpool.Pool, error) {
-	ctx := context.Background()
-
-	pool, err := pgxpool.New(ctx, databaseURL)
+	pool, err := pgxpool.New(context.Background(), databaseURL)
 	if err != nil {
 		return nil, err
 	}
 
-	err = pool.Ping(ctx)
-	if err != nil {
-		pool.Close()
+	if err := pool.Ping(context.Background()); err != nil {
 		return nil, err
 	}
 
