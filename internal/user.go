@@ -10,6 +10,36 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+type MeResponse struct {
+	UserID string `json:"user_id"`
+	Email  string `json:"email"`
+}
+
+func (h *UserHandler) Me(w http.ResponseWriter, r *http.Request) {
+
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	claims, ok := r.Context().Value(UserClaimsKey).(*Claims)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	resp := MeResponse{
+		UserID: claims.UserID,
+		Email:  claims.Email,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	json.NewEncoder(w).Encode(resp)
+}
+
+
 type UserHandler struct {
 	pool *pgxpool.Pool
 }

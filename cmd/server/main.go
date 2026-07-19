@@ -20,7 +20,7 @@ func main() {
 
 	http.HandleFunc("/health", internal.Health)
 	http.HandleFunc("/users", handler.CreateUser)
-
+	http.Handle("/me",AuthMiddleware(http.HandlerFunc(handler.Me)),)
 	log.Println("Server running on :8080")
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
