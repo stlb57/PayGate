@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -51,7 +50,7 @@ func (h *UserHandler) MakePayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.transferMoney(r.Context(), senderID, receiverID, req.Amount)
+	err = h.Transfer(r.Context(), senderID, receiverID, req.Amount)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrInsufficientBalance):
@@ -71,105 +70,3 @@ func (h *UserHandler) MakePayment(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-var ErrInsufficientBalance = errors.New("insufficient balance")
-
-func (h *UserHandler) transferMoney(
-	ctx context.Context,
-	senderID,
-	receiverID uuid.UUID,
-	amount int64,
-) error {
-
-	tx, err := h.pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
-
-	var senderBalance int64
-
-	var receiverBalance int64
-
-err = tx.QueryRow(
-	ctx,
-	`
-	SELECT balance
-	FROM accounts
-	WHERE user_id = $1
-	FOR UPDATE
-	`,
-	receiverID,
-).Scan(&receiverBalance)
-
-if err != nil {
-	return err
-}
-
-	if senderBalance < amount {
-		return ErrInsufficientBalance
-	}
-
-	_, err = tx.Exec(
-		ctx,
-		`
-		UPDATE accounts
-		SET balance = balance - $1
-		WHERE user_id = $2
-		`,
-		amount,
-		senderID,
-	)
-
-	if err != nil {
-		return err
-	}
-
-	_, err = tx.Exec(
-		ctx,
-		`
-		SELECT balance
-		FROM accounts
-		WHERE user_id = $1
-		FOR UPDATE
-		`,
-		receiverID,
-	)
-
-	if err != nil {
-		return err
-	}
-
-	_, err = tx.Exec(
-		ctx,
-		`
-		UPDATE accounts
-		SET balance = balance + $1
-		WHERE user_id = $2
-		`,
-		amount,
-		receiverID,
-	)
-
-	if err != nil {
-		return err
-	}
-
-	_, err = tx.Exec(
-		ctx,
-		`
-		INSERT INTO transactions
-		(id, sender_id, receiver_id, amount)
-		VALUES ($1,$2,$3,$4)
-		`,
-		uuid.New(),
-		senderID,
-		receiverID,
-		amount,
-	)
-
-	if err != nil {
-		return err
-	}
-
-	return tx.Commit(ctx)
-}

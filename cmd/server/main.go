@@ -20,7 +20,10 @@ func main() {
 
 	http.HandleFunc("/health", internal.Health)
 	http.HandleFunc("/users", handler.CreateUser)
-	http.Handle("/me",AuthMiddleware(http.HandlerFunc(handler.Me)),)
+	http.Handle("/payments", internal.AuthMiddleware(http.HandlerFunc(handler.MakePayment)))
+	http.Handle("/balance", internal.AuthMiddleware(http.HandlerFunc(handler.GetBalanceHandler)))
+	http.Handle("/transactions", internal.AuthMiddleware(http.HandlerFunc(handler.GetTransactions)))
+	http.Handle("/me", internal.AuthMiddleware(http.HandlerFunc(handler.Me)))
 	log.Println("Server running on :8080")
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
